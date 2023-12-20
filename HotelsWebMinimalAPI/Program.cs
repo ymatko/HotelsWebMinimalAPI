@@ -1,46 +1,71 @@
+using Microsoft.AspNetCore.Mvc;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 //builder.Services.AddEndpointsApiExplorer();
 //builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<HotelDb>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("SqlLite"));
+});
+
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-//if (app.Environment.IsDevelopment())
-//{
-//    app.UseSwagger();
-//    app.UseSwaggerUI();
-//}
-
-//app.UseHttpsRedirection();
-
-var hotels = new List<Hotel>();
-
-
-
-app.MapGet("/hotels", () => hotels);
-app.MapGet("/hotels/{id}", (int id) => hotels.FirstOrDefault(h => h.Id == id));
-app.MapPost("/hotels", (Hotel hotel) => hotels.Add(hotel));
-app.MapPut("/hotels", (Hotel hotel) =>
+if (app.Environment.IsDevelopment())
 {
-    var index = hotels.FindIndex(h => h.Id == hotel.Id);
-    if (index < 0)
-        throw new Exception("Not found");
-    hotels[index] = hotel;
-});
-app.MapDelete("/hotels/{id}", (int id) =>
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<HotelDb>();
+    db.Database.EnsureCreated();
+    //app.UseSwagger();
+    //app.UseSwaggerUI();
+}
+
+
+app.MapGet("/hotels", async (HotelDb db) => await db.Hotels.ToListAsync());
+app.MapGet("/hotels/{id}", async (HotelDb db, int id) => 
+    await db.Hotels.FirstOrDefaultAsync(h => h.Id == id) is Hotel hotel? Results.Ok(hotel): Results.NotFound());
+app.MapPost("/hotels", async ([FromServices] HotelDb db, [FromBody] Hotel hotel, HttpResponse response) =>
+    {
+        db.Hotels.Add(hotel);
+        await db.SaveChangesAsync();
+        response.StatusCode = 201;
+        response.Headers.Location = $"/hotels/{hotel.Id}";
+    });
+app.MapPut("/hotels", async([FromServices] HotelDb db, [FromBody] Hotel hotel) =>
 {
-    var index = hotels.FindIndex(h => h.Id == id);
-    if (index < 0)
-        throw new Exception("Not found");
-    hotels.RemoveAt(index);
+    var hotelFromDb = await db.Hotels.FindAsync(new object[] { hotel.Id });
+    if (hotelFromDb == null) return Results.NotFound();
+    hotelFromDb.Latitude = hotel.Latitude;
+    hotelFromDb.Longitude = hotel.Longitude;
+    hotelFromDb.Name = hotel.Name;
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+app.MapDelete("/hotels/{id}", async (HotelDb db, int id) =>
+{
+    var hotelFromDb = await db.Hotels.FindAsync(new object[] { id });
+    if (hotelFromDb == null) return Results.NotFound();
+    db.Hotels.Remove(hotelFromDb);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
 });
 
-
+app.UseHttpsRedirection();
 
 app.Run();
+
+public class HotelDb : DbContext
+{
+    public HotelDb(DbContextOptions<HotelDb> options) : base(options)
+    {
+        
+    }
+    public DbSet<Hotel> Hotels => Set<Hotel>();
+}
 
 
 public class Hotel
