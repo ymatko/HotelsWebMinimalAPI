@@ -1,6 +1,6 @@
 ﻿namespace HotelsWebMinimalAPI.Auth
 {
-    public record UserDto(string username, string password);
+    public record UserDto(string UserName, string Password);
 
     public record UserModel
     {
