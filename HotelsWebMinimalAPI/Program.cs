@@ -1,5 +1,6 @@
 using HotelsWebMinimalAPI.Data;
 using Microsoft.AspNetCore.Mvc;
+using System.Runtime.Intrinsics.Arm;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,11 +33,13 @@ app.MapGet("/hotels", async (IHotelRepository repository) =>
     .Produces<List<Hotel>>(StatusCodes.Status200OK)
     .WithName("GetAllHotels")
     .WithTags("Getters");
+
 app.MapGet("/hotels/{id}", async (IHotelRepository repository, int id) => 
     await repository.GetHotelAsync(id) is Hotel hotel? Results.Ok(hotel): Results.NotFound())
     .Produces<Hotel>(StatusCodes.Status200OK)
     .WithName("GetHotel")
-    .WithTags("Getters"); ;
+    .WithTags("Getters");
+
 app.MapPost("/hotels", async ([FromServices] IHotelRepository repository, [FromBody] Hotel hotel, HttpResponse response) =>
     {
         await repository.InsertHotelAsync(hotel);
@@ -47,6 +50,7 @@ app.MapPost("/hotels", async ([FromServices] IHotelRepository repository, [FromB
     .Produces<Hotel>(StatusCodes.Status201Created)
     .WithName("CreateHotel")
     .WithTags("Creators");
+
 app.MapPut("/hotels", async([FromServices] IHotelRepository repository, [FromBody] Hotel hotel) =>
     {
         await repository.UpdateHotelAsync(hotel);
@@ -55,7 +59,8 @@ app.MapPut("/hotels", async([FromServices] IHotelRepository repository, [FromBod
     })
     .Accepts<Hotel>("application/json")
     .WithName("UpdateHotel")
-    .WithTags("Updaters"); ;
+    .WithTags("Updaters");
+
 app.MapDelete("/hotels/{id}", async (IHotelRepository repository, int id) =>
     {
     await repository.DeleteHotelAsync(id);
@@ -64,6 +69,17 @@ app.MapDelete("/hotels/{id}", async (IHotelRepository repository, int id) =>
     })
     .WithName("DeleteHotel")
     .WithTags("Deleters");
+
+app.MapGet("/hotels/search/name/{query}", async (string query, IHotelRepository repository) =>
+    await repository.GetHotelsAsync(query) is IEnumerable<Hotel> hotels
+        ? Results.Ok(hotels)
+        : Results.NotFound(Array.Empty<Hotel>()))
+    .Produces<List<Hotel>>(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status404NotFound)
+    .WithName("SearchHotels")
+    .WithTags("Getters")
+    .ExcludeFromDescription();
+
 
 app.UseHttpsRedirection();
 

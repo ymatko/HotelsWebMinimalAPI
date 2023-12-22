@@ -9,6 +9,8 @@
         }
         public Task<List<Hotel>> GetHotelsAsync() => 
             _hotelDb.Hotels.ToListAsync();
+        public Task<List<Hotel>> GetHotelsAsync(string name) =>
+            _hotelDb.Hotels.Where(h => h.Name.Contains(name)).ToListAsync();
         public async Task<Hotel> GetHotelAsync(int hotelId) =>
             await _hotelDb.Hotels.FindAsync(new object[] { hotelId });
         public async Task InsertHotelAsync(Hotel hotel) =>
