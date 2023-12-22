@@ -1,6 +1,6 @@
 using HotelsWebMinimalAPI;
+using HotelsWebMinimalAPI.Auth;
 using HotelsWebMinimalAPI.Data;
-using System.Runtime.Intrinsics.Arm;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,10 +14,29 @@ builder.Services.AddDbContext<HotelDb>(options =>
 });
 
 builder.Services.AddScoped<IHotelRepository, HotelRepository>();
+builder.Services.AddSingleton<ITokenService>(new TokenService());
+builder.Services.AddSingleton<IUserRepository>(new UserRepository());
+builder.Services.AddAuthorization();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new()
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+        };
+    });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseAuthentication();
+app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
@@ -27,8 +46,21 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.MapGet("/login", [AllowAnonymous] async (HttpContext context, ITokenService tokenService, IUserRepository userRepository) =>
+{
+    UserModel userModel = new()
+    {
+        UserName = context.Request.Query["username"],
+        Password = context.Request.Query["password"],
+    };
+    var userDto = userRepository.GetUser(userModel);
+    if (userDto == null) return Results.Unauthorized();
+    var token = tokenService.BuildToken(builder.Configuration["Jwt:Key"],
+        builder.Configuration["Jwt:Issuer"], userDto);
+    return Results.Ok(token);
+});
 
-app.MapGet("/hotels", async (IHotelRepository repository) =>
+app.MapGet("/hotels", [Authorize] async (IHotelRepository repository) =>
     Results.Extensions.Xml(await repository.GetHotelsAsync()))
     .Produces<List<Hotel>>(StatusCodes.Status200OK)
     .WithName("GetAllHotels")
@@ -40,7 +72,7 @@ app.MapGet("/hotels/{id}", async (IHotelRepository repository, int id) =>
     .WithName("GetHotel")
     .WithTags("Getters");
 
-app.MapPost("/hotels", async ([FromServices] IHotelRepository repository, [FromBody] Hotel hotel, HttpResponse response) =>
+app.MapPost("/hotels", [Authorize] async ([FromServices] IHotelRepository repository, [FromBody] Hotel hotel, HttpResponse response) =>
     {
         await repository.InsertHotelAsync(hotel);
         await repository.SaveAsync();
@@ -51,7 +83,7 @@ app.MapPost("/hotels", async ([FromServices] IHotelRepository repository, [FromB
     .WithName("CreateHotel")
     .WithTags("Creators");
 
-app.MapPut("/hotels", async([FromServices] IHotelRepository repository, [FromBody] Hotel hotel) =>
+app.MapPut("/hotels", [Authorize] async ([FromServices] IHotelRepository repository, [FromBody] Hotel hotel) =>
     {
         await repository.UpdateHotelAsync(hotel);
         await repository.SaveAsync();
@@ -61,7 +93,7 @@ app.MapPut("/hotels", async([FromServices] IHotelRepository repository, [FromBod
     .WithName("UpdateHotel")
     .WithTags("Updaters");
 
-app.MapDelete("/hotels/{id}", async (IHotelRepository repository, int id) =>
+app.MapDelete("/hotels/{id}", [Authorize] async (IHotelRepository repository, int id) =>
     {
     await repository.DeleteHotelAsync(id);
     await repository.SaveAsync();
@@ -70,7 +102,7 @@ app.MapDelete("/hotels/{id}", async (IHotelRepository repository, int id) =>
     .WithName("DeleteHotel")
     .WithTags("Deleters");
 
-app.MapGet("/hotels/search/name/{query}", async (string query, IHotelRepository repository) =>
+app.MapGet("/hotels/search/name/{query}", [Authorize] async (string query, IHotelRepository repository) =>
     await repository.GetHotelsAsync(query) is IEnumerable<Hotel> hotels
         ? Results.Ok(hotels)
         : Results.NotFound(Array.Empty<Hotel>()))
@@ -80,7 +112,7 @@ app.MapGet("/hotels/search/name/{query}", async (string query, IHotelRepository 
     .WithTags("Getters")
     .ExcludeFromDescription();
 
-app.MapGet("/hotels/search/location/{coordinate}", async(IHotelRepository repository, Coordinate coordinate) =>
+app.MapGet("/hotels/search/location/{coordinate}", [Authorize] async (IHotelRepository repository, Coordinate coordinate) =>
     await repository.GetHotelsAsync(coordinate) is IEnumerable<Hotel> hotels
         ? Results.Ok(hotels)
         : Results.NotFound(Array.Empty<Hotel>()))
