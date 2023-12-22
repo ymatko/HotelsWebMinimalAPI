@@ -1,4 +1,6 @@
-﻿namespace HotelsWebMinimalAPI
+﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
+
+namespace HotelsWebMinimalAPI
 {
     public record Coordinate(double Latitude, double Longitude)
     {
@@ -10,8 +12,15 @@
             if (!double.TryParse(splitArray[0], out var lat)) return false;
             if (!double.TryParse(splitArray[1], out var lon)) return false;
             coordinate = new(lat, lon);
-            return false;
+            return true;
 
+        }
+        public static async ValueTask<Coordinate?> BindAsync(HttpContext context, ParameterInfo parameter)
+        {
+            var input = context.GetRouteValue(parameter.Name!) as string ?? string.Empty;
+            TryParse(input, out var coordinate);
+            return coordinate;
         }
     }
 }
+    
