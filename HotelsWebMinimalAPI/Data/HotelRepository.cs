@@ -13,6 +13,13 @@
             _hotelDb.Hotels.Where(h => h.Name.Contains(name)).ToListAsync();
         public async Task<Hotel> GetHotelAsync(int hotelId) =>
             await _hotelDb.Hotels.FindAsync(new object[] { hotelId });
+        public async Task<List<Hotel>> GetHotelsAsync(Coordinate coordinate) =>
+            await _hotelDb.Hotels.Where(hotel =>
+                hotel.Latitude > coordinate.Latitude - 1 &&
+                hotel.Latitude < coordinate.Latitude + 1 &&
+                hotel.Longitude > coordinate.Longitude - 1 &&
+                hotel.Longitude < coordinate.Longitude + 1
+            ).ToListAsync();
         public async Task InsertHotelAsync(Hotel hotel) =>
             await _hotelDb.Hotels.AddAsync(hotel);
         public async Task UpdateHotelAsync(Hotel hotel)
