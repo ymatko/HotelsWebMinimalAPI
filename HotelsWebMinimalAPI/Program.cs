@@ -1,5 +1,5 @@
+using HotelsWebMinimalAPI;
 using HotelsWebMinimalAPI.Data;
-using Microsoft.AspNetCore.Mvc;
 using System.Runtime.Intrinsics.Arm;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +77,16 @@ app.MapGet("/hotels/search/name/{query}", async (string query, IHotelRepository 
     .Produces<List<Hotel>>(StatusCodes.Status200OK)
     .Produces(StatusCodes.Status404NotFound)
     .WithName("SearchHotels")
+    .WithTags("Getters")
+    .ExcludeFromDescription();
+
+app.MapGet("/hotels/search/location/{coordinate}", async(IHotelRepository repository, Coordinate coordinate) =>
+    await repository.GetHotelsAsync(coordinate) is IEnumerable<Hotel> hotels
+        ? Results.Ok(hotels)
+        : Results.NotFound(Array.Empty<Hotel>()))
+    .Produces<List<Hotel>>(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status404NotFound)
+    .WithName("SearchHotelsUseCoordinates")
     .WithTags("Getters")
     .ExcludeFromDescription();
 
