@@ -1,5 +1,11 @@
 # HotelsWebMinimalAPI
 
+![](https://img.shields.io/badge/.NET%20-7.0-blue)
+![](https://img.shields.io/badge/C%23-10-green)
+![](https://img.shields.io/badge/License-MIT-blue)
+![](https://img.shields.io/badge/Visual%20Studio-2022-orange)
+![](https://img.shields.io/badge/-Swagger-green)
+
 **Description:**
 This is a minimalistic ASP.NET Core web API for managing hotel information. It provides endpoints for handling hotel data, including CRUD operations, user authentication, and token-based authorization using JSON Web Tokens (JWT). The API integrates Swagger/OpenAPI for easy documentation and testing.
 
